@@ -9,6 +9,8 @@ import (
 type UserService interface {
 	SignUp(username, email, password string) error
 	SignIn(username, password string) (string, error)
+	GetUserByID(userID int) (*models.User, error)
+	FindByUsername(username string) (*models.User, error)
 }
 
 func (h *BookHandler) UserCreate(w http.ResponseWriter, r *http.Request) {

@@ -3,28 +3,31 @@ package service
 import (
 	"CRUDVk/internal/models"
 	"fmt"
-	"time"
-
 	"github.com/golang-jwt/jwt/v4"
 	"golang.org/x/crypto/bcrypt"
+	"log"
+	"os"
+	"time"
 )
 
 type UserRepository interface {
 	UserCreate(user *models.User) error
 	FindByUsername(username string) (*models.User, error)
 	FindByEmail(email string) (*models.User, error)
-	//Register(username, email, password string) (models.User, error)
-	//Login(username, password string) (string, error)
+	FindByID(userID int) (*models.User, error)
 }
 
 type UserService struct {
-	repo   UserRepository
-	keyJWT string
+	repo UserRepository
+}
+
+func (s *UserService) FindByUsername(username string) (*models.User, error) {
+	return s.repo.FindByUsername(username)
 }
 
 // Конструктор
-func NewUserService(repo UserRepository, keyJWT string) *UserService {
-	return &UserService{repo: repo, keyJWT: keyJWT}
+func NewUserService(repo UserRepository) *UserService {
+	return &UserService{repo: repo}
 }
 
 func (s *UserService) UserCreate(user *models.User) error { return s.repo.UserCreate(user) }
@@ -76,6 +79,8 @@ func (s *UserService) SignIn(username, password string) (string, error) {
 }
 
 func (s *UserService) generateJWTToken(userID int) (string, error) {
+	keyJWT := GetJWTKey()
+
 	claims := jwt.MapClaims{
 		"sub": userID,
 		"exp": time.Now().Add(time.Hour * 24).Unix(),
@@ -83,15 +88,22 @@ func (s *UserService) generateJWTToken(userID int) (string, error) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	tokenString, err := token.SignedString([]byte(s.keyJWT))
+	tokenString, err := token.SignedString([]byte(keyJWT))
 	if err != nil {
 		return "", fmt.Errorf("не удалось создать токен: %v", err)
 	}
 	return tokenString, nil
 }
 
-//TODO: Проверить, существует ли пользователем с таким именем. Если его нет, то выдать ошибку fmt.Errorf
+func GetJWTKey() string {
+	keyJWT := os.Getenv("JWT_SECRET_KEY")
+	fmt.Println(len(keyJWT))
+	if keyJWT == "" {
+		log.Fatal("JWT секретка не задана")
+	}
+	return keyJWT
+}
 
-//TODO: Раскриптовываем пароль, сравниваем в формате ([]byte(user.Password), []byte(password)). Выдаем ошибку, если пароль неверный
-
-//TODO: Генерация JWT токена отдельной функцией. В ней же подписываем его с использованием keyJWT
+func (s *UserService) GetUserByID(userID int) (*models.User, error) {
+	return s.repo.FindByID(userID)
+}

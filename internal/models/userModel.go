@@ -8,4 +8,6 @@ type User struct {
 	Username string `json:"username" gorm:"unique; not null"`
 	Email    string `json:"email" gorm:"unique;not null"`
 	Password string `json:"password,omitempty" gorm:"not null"`
+	UserID   int    `json:"user_id"`
+	Books    []*Book
 }

@@ -2,6 +2,7 @@ package repository
 
 import (
 	models "CRUDVk/internal/models"
+
 	"gorm.io/gorm"
 )
 
@@ -40,6 +41,15 @@ func (r *UserRepositoryStr) FindByUsername(username string) (*models.User, error
 func (r *UserRepositoryStr) FindByEmail(email string) (*models.User, error) {
 	var user models.User
 	err := r.db.Where("email = ?", email).First(&user).Error
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (r *UserRepositoryStr) FindByID(userID int) (*models.User, error) {
+	var user models.User
+	err := r.db.First(&user, userID).Error
 	if err != nil {
 		return nil, err
 	}

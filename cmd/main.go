@@ -7,6 +7,8 @@ import (
 	"CRUDVk/internal/transport/handler"
 	"CRUDVk/pkg/db"
 	"context"
+	"fmt"
+	"github.com/joho/godotenv"
 	"log"
 	"net/http"
 	"os"
@@ -15,12 +17,23 @@ import (
 	"time"
 )
 
-// допиши функцию мейн для всего приложения
-
-// исправь ошибки в коде
+func LoadEnv() {
+	// Загружаем переменные из .env файла
+	err := godotenv.Load("D:/CrudVK/.env")
+	if err != nil {
+		log.Fatal("Ошибка загрузки .env файла")
+	}
+}
 
 func main() {
-	// инициализируй БДшку
+
+	LoadEnv()
+
+	keyJWT := os.Getenv("JWT_SECRET_KEY")
+	fmt.Println("JWT Key:", keyJWT)
+	if keyJWT == "" {
+		log.Fatalf("JWT secret key не установлен")
+	}
 
 	dsn := "root:12345@tcp(127.0.0.1:3306)/CRUDDATABASE?utf8mb4&parseTime=True&loc=Local"
 	db, err := db.NewGormDB(dsn)
@@ -39,9 +52,9 @@ func main() {
 	}
 
 	bookServ := service.NewBookService(bookRepo)
-	userServ := service.NewUserService(userRepo, "jwt_key")
+	userServ := service.NewUserService(userRepo)
 
-	h := handler.NewHandler(bookServ, userServ)
+	h := handler.NewHandler(bookServ, userServ, keyJWT)
 
 	mux := h.InitRoutes()
 	addr := ":8080"

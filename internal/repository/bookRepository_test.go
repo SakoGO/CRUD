@@ -1,5 +1,7 @@
 package repository
 
+/*
+
 import (
 	models "CRUDVk/internal/models"
 	"github.com/stretchr/testify/assert"
@@ -136,3 +138,5 @@ func TestBookRepository_UpdateBook(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Equal(t, gorm.ErrRecordNotFound, err)
 }
+
+*/

@@ -13,7 +13,7 @@ import (
 )
 
 type BookService interface {
-	CreateBook(book *models.Book) error
+	CreateBook(book *models.Book, authorID int) error
 	GetBooks() ([]models.Book, error)
 	GetBookID(id int) (*models.Book, error)
 	UpdateBook(book *models.Book) error
@@ -24,19 +24,34 @@ type BookService interface {
 
 func (h *BookHandler) CreateBook(w http.ResponseWriter, r *http.Request) {
 
+	userID, ok := r.Context().Value("userID").(int)
+	if !ok {
+		http.Error(w, "Неверный ID пользователя", http.StatusUnauthorized)
+		return
+	}
+
+	user, err := h.UserService.GetUserByID(userID)
+	if err != nil {
+		http.Error(w, "Пользователь не найден", http.StatusUnauthorized)
+	}
+
 	var book models.Book
 	if err := json.NewDecoder(r.Body).Decode(&book); err != nil {
 		http.Error(w, "Ошибка при декодировании, невалидные данные", http.StatusBadRequest) // ошибка 400
 		return
 	}
-	if err := h.BookService.CreateBook(&book); err != nil {
+
+	book.Author = user.Username
+	user.UserID = userID
+
+	if err := h.BookService.CreateBook(&book, userID); err != nil {
 		http.Error(w, "Ошибка при создании книги", http.StatusInternalServerError) // Ошибка 500
 		return
 	}
 	if err := json.NewEncoder(w).Encode(&book); err != nil {
 		return
 	}
-	log.Printf("Книга успешно добавлена")
+	log.Printf("Книга успешно добавлена пользователем %s", user.Username)
 }
 
 // GetBooks
@@ -85,6 +100,7 @@ func (h *BookHandler) GetBookID(w http.ResponseWriter, r *http.Request) {
 // UpdateBook
 
 func (h *BookHandler) UpdateBook(w http.ResponseWriter, r *http.Request) {
+
 	idStr := strings.TrimPrefix(r.URL.Path, "/books_update/")
 	bookID, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -92,38 +108,39 @@ func (h *BookHandler) UpdateBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var book models.Book
-	if err := json.NewDecoder(r.Body).Decode(&book); err != nil {
+	var updatedBook models.Book
+	if err := json.NewDecoder(r.Body).Decode(&updatedBook); err != nil {
 		http.Error(w, "Ошибка при декодировании данных", http.StatusBadRequest)
 		return
 	}
 
-	book.ID = bookID
-
-	// Валидация входящих данных
-
-	switch {
-	case book.Title == "":
-		http.Error(w, "Укажите название книги", http.StatusBadRequest)
+	existingBook, err := h.BookService.GetBookID(bookID)
+	if err != nil {
+		http.Error(w, "Книга не найдена", http.StatusNotFound)
 		return
-	case book.Author == "":
-		http.Error(w, "Укажите автора книги", http.StatusBadRequest)
-		return
-	case book.Publisher == "":
-		http.Error(w, "Укажите издателя книги", http.StatusBadRequest)
+	}
+	userID, ok := r.Context().Value("userID").(int)
+	if !ok {
+		http.Error(w, "Неверный ID пользователя", http.StatusUnauthorized)
 		return
 	}
 
-	if err := h.BookService.UpdateBook(&book); err != nil {
-		http.Error(w, "Ошибка при обновлении книги. Возможно эта книга не существует", http.StatusNotFound)
+	user, err := h.UserService.GetUserByID(userID)
+	if err != nil {
+		http.Error(w, "Пользователь не найден", http.StatusUnauthorized)
+		return
+	}
+
+	if existingBook.Author != user.Username {
+		http.Error(w, "У вас недостаточно прав для обновления этой книги", http.StatusForbidden)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(&book); err != nil {
+	if err := json.NewEncoder(w).Encode(&updatedBook); err != nil {
 		http.Error(w, "Ошибка при кодировании данных", http.StatusInternalServerError)
 	}
-	log.Printf("Книга с ID %d успешно обновлена", bookID)
+	log.Printf("Книга № %d успешно обновлена пользователем %s", bookID, user.Username)
 }
 
 func (h *BookHandler) DeleteBook(w http.ResponseWriter, r *http.Request) {
@@ -131,6 +148,27 @@ func (h *BookHandler) DeleteBook(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		http.Error(w, "Неверный формат ID", http.StatusBadRequest)
+		return
+	}
+	existingBook, err := h.BookService.GetBookID(id)
+	if err != nil {
+		http.Error(w, "Книга не найдена", http.StatusNotFound)
+		return
+	}
+	userID, ok := r.Context().Value("userID").(int)
+	if !ok {
+		http.Error(w, "Неверный ID пользователя", http.StatusUnauthorized)
+		return
+	}
+
+	user, err := h.UserService.GetUserByID(userID)
+	if err != nil {
+		http.Error(w, "Пользователь не найден", http.StatusUnauthorized)
+		return
+	}
+
+	if existingBook.Author != user.Username {
+		http.Error(w, "У вас недостаточно прав для удаления этой книги", http.StatusForbidden)
 		return
 	}
 
@@ -141,6 +179,6 @@ func (h *BookHandler) DeleteBook(w http.ResponseWriter, r *http.Request) {
 		}
 		http.Error(w, "Ошибка при удалении книги", http.StatusInternalServerError)
 	}
-	log.Printf("Книга ID %d успешно удалена", id)
+	log.Printf("Книга № %d успешно удалена пользователем %s", id, user.Username)
 	return
 }
