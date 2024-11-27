@@ -1,6 +1,7 @@
 package main
 
 import (
+	"CRUDVk/internal/cache"
 	"CRUDVk/internal/repository"
 	"CRUDVk/internal/service"
 	"CRUDVk/internal/transport"
@@ -51,10 +52,12 @@ func main() {
 		log.Fatalf("Ошибка при создании репозитория для аккаунтов %v", err)
 	}
 
-	bookServ := service.NewBookService(bookRepo)
+	cache := cache.NewCache()
+
+	bookServ := service.NewBookService(bookRepo, cache)
 	userServ := service.NewUserService(userRepo)
 
-	h := handler.NewHandler(bookServ, userServ, keyJWT)
+	h := handler.NewHandler(bookServ, userServ, keyJWT, cache)
 
 	mux := h.InitRoutes()
 	addr := ":8080"
