@@ -9,15 +9,17 @@ type BookHandler struct {
 	BookService BookService
 	UserService UserService
 	keyJWT      string
+	cache       CacheHandler
 }
 
 // Связь с внешним миром, конструктор
 
-func NewHandler(BookService BookService, UserService UserService, keyJWT string) *BookHandler {
+func NewHandler(BookService BookService, UserService UserService, keyJWT string, cache CacheHandler) *BookHandler {
 	return &BookHandler{
 		BookService: BookService,
 		UserService: UserService,
 		keyJWT:      keyJWT,
+		cache:       cache,
 	}
 }
 
@@ -26,6 +28,7 @@ func (h *BookHandler) InitRoutes() *http.ServeMux {
 
 	mux.HandleFunc("/books_get/", h.GetBooks)
 	mux.HandleFunc("/books_get_id/{id}", h.GetBookID)
+	mux.HandleFunc("/cache_print", h.PrintCache)
 
 	mux.HandleFunc("/user_create", h.UserCreate)
 	mux.HandleFunc("/user_login", h.UserLogin)

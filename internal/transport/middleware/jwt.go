@@ -31,17 +31,16 @@ func JWTMiddleware(keyJWT string, next http.HandlerFunc) http.HandlerFunc {
 			return []byte(keyJWT), nil
 		})
 
-		// Я ЗАТРАХАЛСЯ СУКА ЛОГИ ПОКАЖИТЕ ЧТО ДЕЛАТЬ НАДО
+		// Логирование
 		if err != nil {
-			log.Printf("Ошибка при парсинге ЁБАНОГО токена: %v", err)
-			http.Error(w, "Невалидный токен БЛЯДСКОЙ авторизации", http.StatusUnauthorized)
+			log.Printf("Ошибка парсинга JWT токена: %v", err)
+			http.Error(w, "Невалидный токен авторизации", http.StatusUnauthorized)
 			return
 		}
 
 		if !token.Valid {
-			// Логируем проблему с валидностью токена
-			log.Printf("Токен невалиден, ПОТОМУ ЧТО ОН ГАНДОН: %v", token)
-			http.Error(w, "невалидный токен авторизации, ХУЕСОС ЕБЛИВЫЙ", http.StatusUnauthorized)
+			log.Printf("Токен невалиден: %v", token)
+			http.Error(w, "невалидный токен авторизации", http.StatusUnauthorized)
 			return
 		}
 

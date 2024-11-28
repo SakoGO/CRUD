@@ -3,6 +3,7 @@ package service
 import (
 	"CRUDVk/internal/models"
 	"fmt"
+	"time"
 )
 
 type BookRepository interface {
@@ -13,14 +14,25 @@ type BookRepository interface {
 	DeleteBook(id int) error
 }
 
+type BookCache interface {
+	Set(key string, value interface{}, ttl time.Duration)
+	Get(key string) (interface{}, bool)
+	Delete(key string)
+	PrintCache()
+}
+
 type BookService struct {
-	repo BookRepository
+	repo  BookRepository
+	cache BookCache
 }
 
 // Дёргать это
 
-func NewBookService(repo BookRepository) *BookService {
-	return &BookService{repo}
+func NewBookService(repo BookRepository, cache BookCache) *BookService {
+	return &BookService{
+		repo:  repo,
+		cache: cache,
+	}
 }
 
 func (s *BookService) CreateBook(book *models.Book, userID int) error {
@@ -48,8 +60,44 @@ func (s *BookService) UpdateBook(book *models.Book) error {
 	return s.repo.UpdateBook(existingBook)
 }
 
-func (s *BookService) GetBooks() ([]models.Book, error) { return s.repo.GetBooks() }
+func (s *BookService) GetBooks() ([]models.Book, error) {
+	cacheKey := "all_books"
 
-func (s *BookService) GetBookID(id int) (*models.Book, error) { return s.repo.GetBookID(id) }
+	if cachedBooks, found := s.cache.Get(cacheKey); found {
+		return cachedBooks.([]models.Book), nil
+	}
+
+	books, err := s.repo.GetBooks()
+	if err != nil {
+		return nil, err
+	}
+
+	s.cache.Set(cacheKey, books, time.Hour*24)
+	return books, nil
+}
+
+func (s *BookService) GetBookID(id int) (*models.Book, error) {
+	cacheKey := cacheKey(id)
+
+	// Чек книги в кэше
+	if cachedBook, found := s.cache.Get(cacheKey);
+	// Нашлась
+		found {
+		return cachedBook.(*models.Book), nil
+	}
+	// Не нашлась, берём из репо
+	book, err := s.repo.GetBookID(id)
+	// В репо тоже нет, возвращаем ошибку
+	if err != nil {
+		return nil, err
+	}
+
+	s.cache.Set(cacheKey, book, time.Hour*24)
+	return book, nil
+}
 
 func (s *BookService) DeleteBook(id int) error { return s.repo.DeleteBook(id) }
+
+func cacheKey(id int) string {
+	return "book:" + string(id)
+}

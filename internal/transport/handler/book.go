@@ -4,12 +4,11 @@ import (
 	"CRUDVk/internal/models"
 	"encoding/json"
 	"errors"
+	"gorm.io/gorm"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
-
-	"gorm.io/gorm"
 )
 
 type BookService interface {
@@ -49,9 +48,12 @@ func (h *BookHandler) CreateBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := json.NewEncoder(w).Encode(&book); err != nil {
-		return
+		if err := json.NewEncoder(w).Encode(&book); err != nil {
+			http.Error(w, "Ошибка при кодировании данных", http.StatusInternalServerError)
+			return
+		}
+		log.Printf("Книга успешно добавлена пользователем %s", user.Username)
 	}
-	log.Printf("Книга успешно добавлена пользователем %s", user.Username)
 }
 
 // GetBooks
@@ -139,6 +141,7 @@ func (h *BookHandler) UpdateBook(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(&updatedBook); err != nil {
 		http.Error(w, "Ошибка при кодировании данных", http.StatusInternalServerError)
+		return
 	}
 	log.Printf("Книга № %d успешно обновлена пользователем %s", bookID, user.Username)
 }
